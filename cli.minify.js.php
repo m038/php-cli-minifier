@@ -1,6 +1,24 @@
 #!/usr/bin/php
 <?php
 
+    // TODO: change all file handlings to absolute paths
+
+    /*
+        File handling
+        Always try to determine full paths for file for further use in this script.
+        Different scenario's:
+          - Full path
+            Use this full path
+          - No path is specified
+            Check if there is a previous file in this list with a full path
+            (either full path directly from the argument value, or by determinaton)
+            Check if file exists in current directory
+          - Relative path is specified
+
+        File not found
+        Return script terminating error
+    */
+
     //print_r($argv); exit;
 
     if ($argc == 1 || in_array($argv[1], array('--help', '-help', '-h', '-?'))) {
@@ -100,28 +118,32 @@ This is a commandline PHP script which minifies Javascript files.
         }
     }
 
-    $countDirs  = count($inputDirs);
-    $countFiles = count($inputFiles);
+    $countDirs      = count($inputDirs);
+    $countFiles     = count($inputFiles);
+    $filesToHandle  = array(); // Will contain absolute paths
 
+    // Check if any directories or files are given
     if ($countDirs == 0 && $countFiles == 0) {
-        die("\nNothing to minify. (No directories of files specified.)\n");
+        die("\nNothing to minify. No directories or files given.\n");
     }
 
+    // Formatting purposes
     if ($verbose) {
         echo "\n";
     }
 
-    // Create list of files to read
-    $filesToConvert = array();
+
     if ($countFiles > 0) {
 
+        // Scan file input
         foreach ($inputFiles AS $file) {
 
+            // Try to automaticly create absolute path
             $filepath = realpath($file);
 
-            // Check if full path is given, else try to create it from previous files
+            // If fullpath is the same as file, probably file cannot be found
             if ($filepath == $file) {
-                //
+                // TODO: try to find file based on previous directory
             }
 
             // Skip file if it doesn't exist
@@ -130,6 +152,8 @@ This is a commandline PHP script which minifies Javascript files.
                 continue;
             }
 
+            // Skip file if in exclude list
+            // TODO: create absolute paths in exclude list
             if (in_array($file, $excludeFiles)) {
                 if ($verbose) echo "Excluding $file, match found in exclude parameter.\n";
                 continue;
@@ -139,6 +163,10 @@ This is a commandline PHP script which minifies Javascript files.
             $dirname    = dirname($filepath);
             $fileOption = 0;
 
+            // TODO: extract directory from path for next loop
+            // TODO: add filepath to array
+
+            /*
             //
             if ($file != $basename) {
                 if (substr($dirname, 0, 1) == '.') {
@@ -153,13 +181,13 @@ This is a commandline PHP script which minifies Javascript files.
                 foreach ($inputDirs AS $dir) {
                     switch ($fileOption) {
                         case 0:
-                            $filesToConvert[]   = $dir . $file;
+                            $filesToHandle[]   = $dir . $file;
                         break;
                         case 1:
-                            $filesToConvert[]   = $dir . $file;
+                            $filesToHandle[]   = $dir . $file;
                         break;
                         case 2:
-                            $filesToConvert[]   = $file;
+                            $filesToHandle[]   = $file;
                         break;
                     }
                 }
@@ -167,43 +195,60 @@ This is a commandline PHP script which minifies Javascript files.
                 $dir    = dirname(__FILE__);
                 switch ($fileOption) {
                     case 0:
-                        $filesToConvert[]   = $dir . $file;
+                        $filesToHandle[]   = $dir . $file;
                     break;
                     case 1:
-                        $filesToConvert[]   = $dir . $file;
+                        $filesToHandle[]   = $dir . $file;
                     break;
                     case 2:
-                        $filesToConvert[]   = $file;
+                        $filesToHandle[]   = $file;
                     break;
                 }
             }
+            */
         }
     }
 
     if ($countDirs > 0) {
+
+        // Scan directory input for files
         foreach ($inputDirs AS $dir) {
+
+            // TODO: check if directory exists && is_readable
+
+            // Read directory
             $filesInDir = scandir($dir);
+
             foreach ($filesInDir AS $file) {
-                // Skip dots
+                // Skip invalid entries
                 if (
+                    // Skip dots
                     $file == '.' ||
                     $file == '..' ||
+                    // Exclude minified files, except when argument to include is specified
                     (!$includeMinified && preg_match('/\.min\.js$/i', $file)) ||
+                    // Exclude javascript files
+                    // TODO: also add support for other filestypes (mainly CSS)
                     !preg_match('/\.js$/i', $file) ||
+                    // Do not include directory when it's mentioned in exclude files
                     in_array($file, $excludeFiles)
                 ) continue;
 
-                $filesToConvert[]   = $dir . $file;
+                // TODO: build in recursive directory check???
+
+                // Add fullpaths of files to list
+                $filesToHandle[]   = $dir . $file;
             }
         }
     }
 
     if ($verbose) {
-        echo "FILES TO CONVERT\ntotal: ".count($filesToConvert)."\n".print_r($filesToConvert, true)."\n\n";
+        echo "FILES TO CONVERT\ntotal: ".count($filesToHandle)."\n".print_r($filesToHandle, true)."\n\n";
         // remove line below, when done testing
         exit;
     }
 
+    // TODO: file to full path converstion for $inputOutputFile, maybe via function?
     // Check if files should be merged into 1 file
     if (!empty($inputOutputFile)) {
 
@@ -231,7 +276,7 @@ This is a commandline PHP script which minifies Javascript files.
                 $outputFile = $inputOutputFile;
             }
         } else {
-            // File containers no path
+            // File contains no path
             $outputFile     = $outputDir . $inputOutputFile;
         }
 
@@ -239,10 +284,11 @@ This is a commandline PHP script which minifies Javascript files.
             echo "GENERIC OUTPUTFILE\n".$outputFile."\n\n";
         }
 
-        if (in_array($outputFile, $filesToConvert)) {
+        if (in_array($outputFile, $filesToHandle)) {
 
-            $key    = array_search($outputFile, $filesToConvert);
-            unset($filesToConvert[$key]);
+            // Remove outputfile from files to handle
+            $key    = array_search($outputFile, $filesToHandle);
+            unset($filesToHandle[$key]);
 
             if ($verbose) {
                 echo "GENERIC OUTPUTFILE\nFile removed from minify process\n\n";
@@ -250,7 +296,7 @@ This is a commandline PHP script which minifies Javascript files.
         }
     }
 
-    // Clear output file
+    // Create and clear output file, when needed
     if (isset($outputFile) && !empty($outputFile)) {
 
         $status = file_put_contents($outputFile, '', LOCK_EX);
@@ -271,10 +317,11 @@ This is a commandline PHP script which minifies Javascript files.
 
     $statusArray    = array();
 
-    // Startconversion
-    foreach ($filesToConvert AS $readFile) {
+    // Start handling
+    foreach ($filesToHandle AS $readFile) {
 
         // Check if file exists
+        // TODO: double check can be removed, right? But maybe good to keep anyway...
         if (!is_readable($readFile)) {
             if ($verbose) {
                 echo "skipped:\t\t".$readFile."\n\n";
@@ -282,17 +329,21 @@ This is a commandline PHP script which minifies Javascript files.
             continue;
         }
 
+        // Check for writing to generic output file
         if (isset($outputFile) && !empty($outputFile)) {
-            // Generic input/output file
-            $writeFile  = $outputFile;
-            $flags      = FILE_APPEND | LOCK_EX;
-            $seperator  = ';';
+            // One file
+
+            $writeFile  = $outputFile; // Destination file
+            $flags      = FILE_APPEND | LOCK_EX; // File writing options
+            $seperator  = ';'; // Concatenation seperator
         } else {
+
+            // Insert .min before the file extention
             $extension  = substr($readFile, strrpos($readFile, '.'));
             $cleanFile  = substr($readFile, 0, strrpos($readFile, '.'));
-            $writeFile  = $cleanFile . '.min' . $extension;
-            $flags      = LOCK_EX;
-            $seperator  = '';
+            $writeFile  = $cleanFile . '.min' . $extension; // Destination file
+            $flags      = LOCK_EX; // File writing options
+            $seperator  = ''; // No concatenation needed, therefor empty
         }
 
         if ($verbose) {
@@ -301,16 +352,23 @@ This is a commandline PHP script which minifies Javascript files.
             echo "type:\t\t".(($flags == LOCK_EX) ? 'new' : 'append')."\n";
         }
 
+        // Retrieve contents of the unhandled file
         $orgContents    = file_get_contents($readFile);
+
+        // Check for debug mode
         if ($debugNoMinify) {
+            // Debug mode activated, no minifying
+
             $newContents = $orgContents;
         } else {
-            // Only minify not already minified files
+
+            // Only minify files that should not be minified
             $newContents    = (preg_match('/(?:\.|-)min\./i', $readFile) > 0)
                             ? $orgContents
                             : JSMinPlus::minify($orgContents).$seperator;
         }
 
+        // Write to file and store output in status array
         $succes         = file_put_contents($writeFile, $newContents, $flags);
         $statusArray[]  = $succes;
 
@@ -321,6 +379,7 @@ This is a commandline PHP script which minifies Javascript files.
         }
     }
 
+    // Check for errors in status array
     if (in_array(false, $statusArray)) {
         if ($verbose) {
             if ($debugNoMinify) {
@@ -329,16 +388,18 @@ This is a commandline PHP script which minifies Javascript files.
                 echo "ERROR\nAn error occured while minifying\n";
             }
         } else {
+            // Return boolean, so it can be used by automatic script handlers (e.g. IDE)
             echo 0;
         }
     } else {
         if ($verbose) {
             if ($debugNoMinify) {
-                echo "DONE\nAll files were succesfully concatenated\n";
+                echo "DONE\nAll files are succesfully concatenated\n";
             } else {
-                echo "DONE\nAll files were succesfully minified\n";
+                echo "DONE\nAll files are succesfully minified\n";
             }
         } else {
+            // Return boolean, so it can be used by automatic script handlers (e.g. IDE)
             echo 1;
         }
     }
