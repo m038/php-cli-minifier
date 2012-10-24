@@ -439,7 +439,7 @@ This is a commandline PHP script which minifies Javascript files.
             $cleanFile  = substr($readFile, 0, strrpos($readFile, '.'));
             $writeFile  = $cleanFile . '.min' . $extension; // Destination file
             $flags      = LOCK_EX; // File writing options
-            $seperator  = ''; // No concatenation needed, therefor empty
+            $seperator  = ''; // No concatenation needed, therefore empty
         }
 
         if ($verbose) {
