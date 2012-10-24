@@ -19,7 +19,7 @@
         Return script terminating error
     */
 
-    //print_r($argv); exit;
+    // print_r($argv); exit;
 
     if ($argc == 1 || in_array($argv[1], array('--help', '-help', '-h', '-?'))) {
 ?>
@@ -55,6 +55,124 @@ This is a commandline PHP script which minifies Javascript files.
 
 <?php
 } else {
+
+    /**
+     * Find full filesystem path to a file
+     * @param  string  $file            File as specified as argument
+     * @param  mixed   $alternativepath If filepath cannot be found, use this
+     *                                  parameter to try and determine path.
+     *                                  Can be string for one path, or array for
+     *                                  multiple path, stops on first found file
+     * @param  boolean $verbose         More output
+     * @return mixed                    Returns false on error and string on
+     *                                  success
+     */
+    function findRealpath($file, $alternativepaths=array(), $verbose=false) {
+
+        $filepath   = realpath($file);
+        $filename   = basename($file);
+
+        // Only filename is specified
+        if (!$filepath) {
+
+            // Convert to array
+            if (is_string($alternativepaths)) {
+                $alternativepaths = array($alternativepaths);
+            }
+
+            //
+            foreach ($alternativepaths AS $path) {
+
+                // Check for trailing slash
+                if (substr($path, -1) != '/') {
+                    $path .= '/';
+                }
+
+                $filepath = $path . $filename;
+
+                if (is_file($filepath)) {
+                    break;
+                }
+            }
+        }
+
+        // File does not exist
+        if (!is_file($filepath)) {
+
+            if ($verbose) {
+                echo "$filepath is not a valid file.\n";
+            }
+
+            return false;
+        } elseif (!is_readable($filepath)) {
+            // file cannot be read by user
+
+            if ($verbose) {
+                echo "You don't have the right permission to read $filepath.\n";
+            }
+
+            return false;
+        }
+
+        return $filepath;
+    }
+
+    /**
+     * Loop through array with files and convert filenames to file paths
+     * @param  mixed    $fileList   List of files (array). A single file can
+     *                              also be specified as string, it will
+     *                              internally be converted to an array.
+     * @param  boolean  $verbose    More output
+     * @return mixed                Returns boolean on error and array on success
+     */
+    function handleFilelists($fileList, $verbose=false) {
+
+        // Check for type and data
+        if ((!is_string($fileList) && !is_array($fileList)) || empty($fileList)) {
+
+            if ($verbose) {
+
+                if (!is_string($fileList) && !is_array($fileList)) {
+                    echo "First parameter should be either of type string or array.\n";
+                } elseif (empty($fileList)) {
+                    echo "No file or filelist specified.\n";
+                }
+            }
+
+            return false;
+        }
+
+        // Convert string to array
+        if (!is_array($fileList)) {
+            $fileList = array($fileList);
+        }
+
+        // Will contain list of files with full paths
+        $fileListFullPaths  = array();
+        $prevPath           = array(); // Store path of previous file
+
+        foreach ($fileList AS $fileEntry) {
+
+            // Try to find filepath
+            $filepath = findRealpath($fileEntry, $prevPath);
+
+            // Ignore file when no filepath is found
+            if (!$filepath) {
+
+                if ($verbose) {
+                    echo "Skipping $fileEntry.\n";
+                }
+
+                continue;
+            }
+
+            $fileListFullPaths[]    = $filepath;
+            $prevPath[]             = dirname($filepath);
+        }
+
+        // Unique the array
+        return array_unique($fileListFullPaths);
+    }
 
     ini_set('memory_limit', '512M');    // Memory heavy action
     set_time_limit(0);                  // Large files can cause timeout
@@ -118,6 +236,10 @@ This is a commandline PHP script which minifies Javascript files.
         }
     }
 
+    // Find fullpaths for exclude files
+    $excludeFilesFull   = handleFilelists($excludeFiles, $verbose);
+
+
     $countDirs      = count($inputDirs);
     $countFiles     = count($inputFiles);
     $filesToHandle  = array(); // Will contain absolute paths
@@ -132,81 +254,9 @@ This is a commandline PHP script which minifies Javascript files.
         echo "\n";
     }
 
-
     if ($countFiles > 0) {
 
-        // Scan file input
-        foreach ($inputFiles AS $file) {
-
-            // Try to automaticly create absolute path
-            $filepath = realpath($file);
-
-            // If fullpath is the same as file, probably file cannot be found
-            if ($filepath == $file) {
-                // TODO: try to find file based on previous directory
-            }
-
-            // Skip file if it doesn't exist
-            if (!is_file($filepath)) {
-                if ($verbose) echo "File $file does not exist.\n";
-                continue;
-            }
-
-            // Skip file if in exclude list
-            // TODO: create absolute paths in exclude list
-            if (in_array($file, $excludeFiles)) {
-                if ($verbose) echo "Excluding $file, match found in exclude parameter.\n";
-                continue;
-            }
-
-            $basename   = basename($file);
-            $dirname    = dirname($filepath);
-            $fileOption = 0;
-
-            // TODO: extract directory from path for next loop
-            // TODO: add filepath to array
-
-            /*
-            //
-            if ($file != $basename) {
-                if (substr($dirname, 0, 1) == '.') {
-                    $fileOption = 1;
-                } else {
-                    $fileOption = 2;
-                }
-            }
-
-            // create for each dir and file an entry
-            if ($countDirs) {
-                foreach ($inputDirs AS $dir) {
-                    switch ($fileOption) {
-                        case 0:
-                            $filesToHandle[]   = $dir . $file;
-                        break;
-                        case 1:
-                            $filesToHandle[]   = $dir . $file;
-                        break;
-                        case 2:
-                            $filesToHandle[]   = $file;
-                        break;
-                    }
-                }
-            } else {
-                $dir    = dirname(__FILE__);
-                switch ($fileOption) {
-                    case 0:
-                        $filesToHandle[]   = $dir . $file;
-                    break;
-                    case 1:
-                        $filesToHandle[]   = $dir . $file;
-                    break;
-                    case 2:
-                        $filesToHandle[]   = $file;
-                    break;
-                }
-            }
-            */
-        }
+        $filesToHandle = handleFilelists($inputFiles, $verbose);
     }
 
     if ($countDirs > 0) {
@@ -215,6 +265,20 @@ This is a commandline PHP script which minifies Javascript files.
         foreach ($inputDirs AS $dir) {
 
             // TODO: check if directory exists && is_readable
+            // Fixed!
+            if (!is_dir($dir)) {
+
+                if ($verbose) {
+                    echo "$dir is not a valid directory.\n";
+                }
+                continue;
+            } elseif (!is_readable($dir)) {
+
+                if ($verbose) {
+                    echo "You don't have the right permission to read $dir.\n";
+                }
+                continue;
+            }
 
             // Read directory
             $filesInDir = scandir($dir);
@@ -244,41 +308,72 @@ This is a commandline PHP script which minifies Javascript files.
 
     if ($verbose) {
         echo "FILES TO CONVERT\ntotal: ".count($filesToHandle)."\n".print_r($filesToHandle, true)."\n\n";
-        // remove line below, when done testing
-        exit;
     }
 
     // TODO: file to full path converstion for $inputOutputFile, maybe via function?
     // Check if files should be merged into 1 file
     if (!empty($inputOutputFile)) {
 
-        // Output dir
-        if (count($inputDirs) == 0) {
-            if (count($inputFiles)) {
-                // TODO: fix this shit
-            } else {
-                $dir    = dirname(__FILE__);
-            }
-        } else {
-            $outputDir  = $inputDirs[0]; // If multiple, pick first
+        // try to find real path for output file
+        $outputFileDir      = realpath(dirname($inputOutputFile));
+        $outputFileName     = basename($inputOutputFile);
+
+        // If directories are specified, and the user only send the clean
+        // filename as value, then try to store the file in the first directory
+        if ($countDirs >= 1 && $outputFileName == $inputOutputFile) {
+
+            $outputFileDir      = realpath($inputDirs[0]);
+        } elseif ($countFiles >= 1 && $outputFileName == $inputOutputFile) {
+
+            $outputFileDir      = realpath(dirname($inputFiles[0]));
         }
 
-        $basename   = basename($inputOutputFile);
-        $dirname    = dirname($inputOutputFile);
+        if (!is_dir($outputFileDir)) {
+
+            if ($verbose) {
+                echo "Directory $outputFileDir does not exist.\n";
+            }
+
+            die(0);
+        } elseif (!is_writeable($outputFileDir)) {
+            if ($verbose) {
+                echo "You don't have the right permission to write to $outputFileDir.\n";
+            }
+
+            die(0);
+        }
+
+        $outputFile = $outputFileDir . '/' . $outputFileName;
+
+        // Output dir
+        // if (count($inputDirs) == 0) {
+        //     if (count($inputFiles)) {
+        //         // TODO: fix this shit
+        //     } else {
+        //         $dir    = dirname(__FILE__);
+        //     }
+        // } else {
+        //     $outputDir  = $inputDirs[0]; // If multiple, pick first
+        // }
+
+        // $basename   = basename($inputOutputFile);
+        // $dirname    = dirname($inputOutputFile);
+
+        // //
+        // if ($inputOutputFile != $basename) {
+        //     if (substr($dirname, 0, 1) == '.') {
+        //         // File contains relative path
+        //         $outputFile = $outputDir . $inputOutputFile;
+        //     } else {
+        //         // File contains fullpath
+        //         $outputFile = $inputOutputFile;
+        //     }
+        // } else {
+        //     // File contains no path
+        //     $outputFile     = $outputDir . $inputOutputFile;
+        // }
 
         //
-        if ($inputOutputFile != $basename) {
-            if (substr($dirname, 0, 1) == '.') {
-                // File contains relative path
-                $outputFile = $outputDir . $inputOutputFile;
-            } else {
-                // File contains fullpath
-                $outputFile = $inputOutputFile;
-            }
-        } else {
-            // File contains no path
-            $outputFile     = $outputDir . $inputOutputFile;
-        }
 
         if ($verbose) {
             echo "GENERIC OUTPUTFILE\n".$outputFile."\n\n";
@@ -301,10 +396,12 @@ This is a commandline PHP script which minifies Javascript files.
 
         $status = file_put_contents($outputFile, '', LOCK_EX);
 
-        //if (!$status) {
-        //  echo "GENERIC OUTPUTFILE\nCould not create output file\n\n";
-        //  echo 1; exit;
-        //}
+        if ($status === false) {
+            if ($verbose) {
+                echo "GENERIC OUTPUTFILE\nCould not create output file\n\n";
+            }
+            die(0);
+        }
 
         if ($verbose) {
             echo "GENERIC OUTPUTFILE\nFile touched and trimmed\n\n";
@@ -320,8 +417,7 @@ This is a commandline PHP script which minifies Javascript files.
     // Start handling
     foreach ($filesToHandle AS $readFile) {
 
-        // Check if file exists
-        // TODO: double check can be removed, right? But maybe good to keep anyway...
+        // Check if file exists, double check doesn't hurt
         if (!is_readable($readFile)) {
             if ($verbose) {
                 echo "skipped:\t\t".$readFile."\n\n";
@@ -338,7 +434,7 @@ This is a commandline PHP script which minifies Javascript files.
             $seperator  = ';'; // Concatenation seperator
         } else {
 
-            // Insert .min before the file extention
+            // Insert .min before the file extension
             $extension  = substr($readFile, strrpos($readFile, '.'));
             $cleanFile  = substr($readFile, 0, strrpos($readFile, '.'));
             $writeFile  = $cleanFile . '.min' . $extension; // Destination file
