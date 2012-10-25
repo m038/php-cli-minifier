@@ -1,27 +1,12 @@
 #!/usr/bin/php
 <?php
 
-    // TODO: change all file handlings to absolute paths
+    define('CLI', true);
 
-    /*
-        File handling
-        Always try to determine full paths for file for further use in this script.
-        Different scenario's:
-          - Full path
-            Use this full path
-          - No path is specified
-            Check if there is a previous file in this list with a full path
-            (either full path directly from the argument value, or by determinaton)
-            Check if file exists in current directory
-          - Relative path is specified
-
-        File not found
-        Return script terminating error
-    */
-
-    // print_r($argv); exit;
-
+    // Default argument count is 1 => filename of script
+    // Check if no arguments or help arguments are specified
     if ($argc == 1 || in_array($argv[1], array('--help', '-help', '-h', '-?'))) {
+
 ?>
 
 This is a commandline PHP script which minifies Javascript and CSS files.
@@ -29,173 +14,61 @@ This is a commandline PHP script which minifies Javascript and CSS files.
   Usage:
   php <?php echo basename($argv[0]); ?> [options] [args]
 
-  -d, --directory 		One or more directories in which the files reside.
-  -x, --exclude   		One or more files to exclude from directory (see -d).
-  -f, --file      		One or more files to include.
-                    	Possibilities:
-                        	- Full path to filename.
-                       		- Relative to one of specified the dirs (see -d)
-                       		- Relative to the current working directory
-                    	In combination with the -d argument it's possible to
-                    	specify the order of minifying. Files will be minified
-                    	and concatenated in the order in which they are
-                    	specified.
-  -i, --includeminified	Use this argument to include minified files
-  						(/(.|-)min./)) when reading a directory specified with
-  						-d. Already minified files will only be concatenated.
-  -o, --output    		Output file
-                    	Possibilities:
-                        	- Full path to filename.
-                        	- Relative to the first specified directory (see -d)
-                        	- Relative to the current working directory
-                    	(Existing files will be overwritten!)
-  -v, --verbose   		More ouput.
-  -h, --help      		This help.
-  --debug           	Skip minifying, just concatenate all files.
-  -c, --css
-  -j, --javascript
+  -d, --directory       One or more directories in which the files reside.
+  -x, --exclude         One or more files to exclude from directory (see -d).
+  -f, --file            One or more files to include.
+                        Possibilities:
+                            - Full path to filename.
+                            - Relative to one of specified the dirs (see -d)
+                            - Relative to the current working directory
+                        In combination with the -d argument it's possible to
+                        specify the order of minifying. Files will be minified
+                        and concatenated in the order in which they are
+                        specified.
+  -i, --includeminified Use this argument to include minified files
+                        (/(.|-)min./)) when reading a directory specified with
+                        -d. Already minified files will only be concatenated.
+  -o, --output          Output file
+                        Possibilities:
+                            - Full path to filename.
+                            - Relative to the first specified directory (see -d)
+                            - Relative to the current working directory
+                        (Existing files will be overwritten!)
+  -v, --verbose         More ouput.
+  -h, --help            This help.
+  --debug               Skip minifying, just concatenate all files.
+  -c, --css             When not specifying files manually, use this argument
+                        to filter for css files.
+  -j, --javascript      When not specifying files manually, use this argument
+                        to filter for css files.
 
 <?php
+
 } else {
-
-    /**
-     * Find full filesystem path to a file
-     * @param  string  $file            File as specified as argument
-     * @param  mixed   $alternativepath If filepath cannot be found, use this
-     *                                  parameter to try and determine path.
-     *                                  Can be string for one path, or array for
-     *                                  multiple path, stops on first found file
-     * @param  boolean $verbose         More output
-     * @return mixed                    Returns false on error and string on
-     *                                  success
-     */
-    function findRealpath($file, $alternativepaths=array(), $verbose=false) {
-
-        $filepath   = realpath($file);
-        $filename   = basename($file);
-
-        // Only filename is specified
-        if (!$filepath) {
-
-            // Convert to array
-            if (is_string($alternativepaths)) {
-                $alternativepaths = array($alternativepaths);
-            }
-
-            //
-            foreach ($alternativepaths AS $path) {
-
-                // Check for trailing slash
-                if (substr($path, -1) != '/') {
-                    $path .= '/';
-                }
-
-                $filepath = $path . $filename;
-
-                if (is_file($filepath)) {
-                    break;
-                }
-            }
-        }
-
-        // File does not exist
-        if (!is_file($filepath)) {
-
-            if ($verbose) {
-                echo "$filepath is not a valid file.\n";
-            }
-
-            return false;
-        } elseif (!is_readable($filepath)) {
-            // file cannot be read by user
-
-            if ($verbose) {
-                echo "You don't have the right permission to read $filepath.\n";
-            }
-
-            return false;
-        }
-
-        return $filepath;
-    }
-
-    /**
-     * Loop through array with files and convert filenames to file paths
-     * @param  mixed    $fileList   List of files (array). A single file can
-     *                              also be specified as string, it will
-     *                              internally be converted to an array.
-     * @param  boolean  $verbose    More output
-     * @return mixed                Returns boolean on error and array on success
-     */
-    function handleFilelists($fileList, $verbose=false) {
-
-        // Check for type and data
-        if ((!is_string($fileList) && !is_array($fileList)) || empty($fileList)) {
-
-            if ($verbose) {
-
-                if (!is_string($fileList) && !is_array($fileList)) {
-                    echo "First parameter should be either of type string or array.\n";
-                } elseif (empty($fileList)) {
-                    echo "No file or filelist specified.\n";
-                }
-            }
-
-            return false;
-        }
-
-        // Convert string to array
-        if (!is_array($fileList)) {
-            $fileList = array($fileList);
-        }
-
-        // Will contain list of files with full paths
-        $fileListFullPaths  = array();
-        $prevPath           = array(); // Store path of previous file
-
-        foreach ($fileList AS $fileEntry) {
-
-            // Try to find filepath
-            $filepath = findRealpath($fileEntry, $prevPath);
-
-            // Ignore file when no filepath is found
-            if (!$filepath) {
-
-                if ($verbose) {
-                    echo "Skipping $fileEntry.\n";
-                }
-
-                continue;
-            }
-
-            $fileListFullPaths[]    = $filepath;
-            $prevPath[]             = dirname($filepath);
-        }
-
-        // Unique the array
-        return array_unique($fileListFullPaths);
-    }
 
     ini_set('memory_limit', '512M');    // Memory heavy action
     set_time_limit(0);                  // Large files can cause timeout
     require 'jsminplus.php';            // JsMinPlus 1.4
+    require 'cli.functions.php';
 
-    // Defaults
+    // Default values for arguments
     $verbose            = false; // Verbose output
     $debugNoMinify      = false; // No minifiying, only concatenating
     $includeMinified    = false; // When matching files in a dir, will include files with .min. in their name
+    $minifyJavascript   = false;
+    $minifyCSS          = false;
 
     $excludeFiles       = array(); // Files to exclude
     $inputDirs          = array(); // Directories to scan
     $inputFiles         = array(); // Manual input files
     $inputOutputFile    = ''; // Output file
 
-    $prevOption         = ''; // User to store the previous option
+    $prevOption         = ''; // User to store the previous argument
 
     // Handle arguments
     foreach ($argv AS $parameter) {
         if (substr($parameter, 0, 1) == '-') {
-            // Options with no parameters
+            // Arguments with no values
             switch($parameter) {
                 case '-v':
                 case '--verbose':
@@ -208,12 +81,20 @@ This is a commandline PHP script which minifies Javascript and CSS files.
                 case '--debug':
                     $debugNoMinify      = true;
                 break;
+                case '-c':
+                case '--css':
+                    $minifyCSS          = true;
+                break;
+                case '-j':
+                case '--javascript':
+                    $minifyJavascript   = true;
+                break;
                 default:
                     $prevOption         = $parameter;
                 break;
             }
         } else {
-            // Parameters to options
+            // Values of arguments
             switch($prevOption) {
                 case '-d':
                 case '--directory':
@@ -233,18 +114,68 @@ This is a commandline PHP script which minifies Javascript and CSS files.
                 break;
                 default:
                     // Display help about to user parameters?
+                    // echo "\n";
+                    // echo "Invalid argument $prevOption. See help for more information\n\n";
+                    // echo "    php ". basename($argv[0]) ." -h\n\n";
+                    // exit;
                 break;
             }
         }
+    }
+
+    // Start of verbose outputting
+    if ($verbose) {
+        echo "\nSTARTING VERBOSE OUTPUT\n\n";
+    }
+
+
+    // For now it's not possible to minify both Javascript and CSS
+    if ($minifyJavascript && $minifyCSS) {
+        if ($verbose) {
+            die("You cannot minify both Javascript or CSS files in one call.\n");
+        }
+        echo 0;
+        exit;
+    }
+
+    // At least one of the types should be specified
+    if (!$minifyJavascript && !$minifyCSS) {
+        if ($verbose) {
+            die("You must set a handling type, see -j and-c.\n");
+        }
+        echo 0;
+        exit;
+    }
+
+    // Minified file pattern
+    $minifiedFilePattern    = '(\.|-)min';
+
+    // Containers file extentions, which will be used to filter file lists
+    $fileExtentension   = '';
+
+    // Set file extenion based on arguments
+    if ($minifyJavascript) {
+        $fileExtentension   = 'js';
+    } elseif ($minifyCSS) {
+        $fileExtentension   = 'css';
+    }
+
+    if ($verbose) {
+        echo "MINIFY EXTENSION\n$fileExtentension\n\n";
+    }
+
+
+    if ($verbose) {
+        echo "CREATING FULLPATHS FOR EXCLUDE FILES\n";
     }
 
     // Find fullpaths for exclude files
     $excludeFilesFull   = handleFilelists($excludeFiles, $verbose);
 
 
-    $countDirs      = count($inputDirs);
-    $countFiles     = count($inputFiles);
-    $filesToHandle  = array(); // Will contain absolute paths
+    $countDirs          = count($inputDirs);
+    $countFiles         = count($inputFiles);
+    $filesToHandle      = array(); // Will contain absolute paths
 
     // Check if any directories or files are given
     if ($countDirs == 0 && $countFiles == 0) {
@@ -266,8 +197,6 @@ This is a commandline PHP script which minifies Javascript and CSS files.
         // Scan directory input for files
         foreach ($inputDirs AS $dir) {
 
-            // TODO: check if directory exists && is_readable
-            // Fixed!
             if (!is_dir($dir)) {
 
                 if ($verbose) {
@@ -291,11 +220,14 @@ This is a commandline PHP script which minifies Javascript and CSS files.
                     // Skip dots
                     $file == '.' ||
                     $file == '..' ||
+
                     // Exclude minified files, except when argument to include is specified
-                    (!$includeMinified && preg_match('/\.min\.js$/i', $file)) ||
+                    (!$includeMinified && preg_match('/'.$minifiedFilePattern.'\.'.$fileExtentension.'$/i', $file)) ||
+
                     // Exclude javascript files
                     // TODO: also add support for other filestypes (mainly CSS)
-                    !preg_match('/\.js$/i', $file) ||
+                    !preg_match('/\.'.$fileExtentension.'$/i', $file) ||
+
                     // Do not include directory when it's mentioned in exclude files
                     in_array($file, $excludeFiles)
                 ) continue;
@@ -309,7 +241,7 @@ This is a commandline PHP script which minifies Javascript and CSS files.
     }
 
     if ($verbose) {
-        echo "FILES TO CONVERT\ntotal: ".count($filesToHandle)."\n".print_r($filesToHandle, true)."\n\n";
+        echo "FILES TO CONVERT\ntotal: ".count($filesToHandle)."\n".print_r($filesToHandle, true)."\n";
     }
 
     // TODO: file to full path converstion for $inputOutputFile, maybe via function?
@@ -346,36 +278,6 @@ This is a commandline PHP script which minifies Javascript and CSS files.
         }
 
         $outputFile = $outputFileDir . '/' . $outputFileName;
-
-        // Output dir
-        // if (count($inputDirs) == 0) {
-        //     if (count($inputFiles)) {
-        //         // TODO: fix this shit
-        //     } else {
-        //         $dir    = dirname(__FILE__);
-        //     }
-        // } else {
-        //     $outputDir  = $inputDirs[0]; // If multiple, pick first
-        // }
-
-        // $basename   = basename($inputOutputFile);
-        // $dirname    = dirname($inputOutputFile);
-
-        // //
-        // if ($inputOutputFile != $basename) {
-        //     if (substr($dirname, 0, 1) == '.') {
-        //         // File contains relative path
-        //         $outputFile = $outputDir . $inputOutputFile;
-        //     } else {
-        //         // File contains fullpath
-        //         $outputFile = $inputOutputFile;
-        //     }
-        // } else {
-        //     // File contains no path
-        //     $outputFile     = $outputDir . $inputOutputFile;
-        // }
-
-        //
 
         if ($verbose) {
             echo "GENERIC OUTPUTFILE\n".$outputFile."\n\n";
@@ -414,7 +316,9 @@ This is a commandline PHP script which minifies Javascript and CSS files.
         echo "START MINIFY PROCES\n\n";
     }
 
-    $statusArray    = array();
+
+    $statusArray        = array(); // Contains statusses for each handled file
+    $totalBytesWritten  = 0;
 
     // Start handling
     foreach ($filesToHandle AS $readFile) {
@@ -460,19 +364,35 @@ This is a commandline PHP script which minifies Javascript and CSS files.
             $newContents = $orgContents;
         } else {
 
-            // Only minify files that should not be minified
-            $newContents    = (preg_match('/(?:\.|-)min\./i', $readFile) > 0)
-                            ? $orgContents
-                            : JSMinPlus::minify($orgContents).$seperator;
+            // Only minify files that are not already minified
+            if (preg_match('/'.$minifiedFilePattern.'\./i', $readFile) > 0) {
+
+                $newContents    = $orgContents;
+            } else {
+
+                // Check for handling type
+                if ($minifyJavascript) {
+
+                    $newContents    = minifyJavascript($orgContents, $seperator);
+                } elseif ($minifyCSS) {
+
+                    $newContents    = minifyCss($orgContents);
+                }
+            }
         }
 
         // Write to file and store output in status array
-        $succes         = file_put_contents($writeFile, $newContents, $flags);
-        $statusArray[]  = $succes;
+        $success        = file_put_contents($writeFile, $newContents, $flags);
+        $statusArray[]  = $success;
+
+        // Increment totalbyteswritten on success
+        if ($success !== false) {
+            $totalBytesWritten += $success;
+        }
 
         if ($verbose) {
             echo "minified:\t".((preg_match('/\.min/i', $readFile) > 0) ? 'false' : 'true')."\n";
-            echo "status:\t\t".(($succes) ? $succes .' bytes written' : 'failed')."\n";
+            echo "status:\t\t".(($success) ? $success .' bytes written' : 'failed')."\n";
             echo "-------------------------------------------------------\n\n";
         }
     }
@@ -491,10 +411,11 @@ This is a commandline PHP script which minifies Javascript and CSS files.
         }
     } else {
         if ($verbose) {
+            echo "DONE\n$totalBytesWritten bytes written\n";
             if ($debugNoMinify) {
-                echo "DONE\nAll files are succesfully concatenated\n";
+                echo "All files are succesfully concatenated\n";
             } else {
-                echo "DONE\nAll files are succesfully minified\n";
+                echo "All files are succesfully minified\n";
             }
         } else {
             // Return boolean, so it can be used by automatic script handlers (e.g. IDE)
