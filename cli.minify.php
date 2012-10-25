@@ -187,11 +187,7 @@ This is a commandline PHP script which minifies Javascript and CSS files.
         echo "\n";
     }
 
-    if ($countFiles > 0) {
-
-        $filesToHandle = handleFilelists($inputFiles, $verbose);
-    }
-
+    // Handle directories
     if ($countDirs > 0) {
 
         // Scan directory input for files
@@ -239,6 +235,19 @@ This is a commandline PHP script which minifies Javascript and CSS files.
             }
         }
     }
+
+    // TODO: add sort functionality
+    echo var_dump($filesToHandle)."\n";
+
+
+    // Handle files
+    if ($countFiles > 0) {
+
+        $filesToHandle = handleFilelists($inputFiles, $verbose);
+    }
+
+    echo var_dump($filesToHandle)."\n";
+    exit;
 
     if ($verbose) {
         echo "FILES TO CONVERT\ntotal: ".count($filesToHandle)."\n".print_r($filesToHandle, true)."\n";
