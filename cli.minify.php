@@ -148,7 +148,7 @@ This is a commandline PHP script which minifies Javascript and CSS files.
     }
 
     // Minified file pattern
-    $minifiedFilePattern    = '(\.|-)min';
+    $minifiedFilePattern    = '(\.|\-)min';
 
     // Containers file extentions, which will be used to filter file lists
     $fileExtentension   = '';
@@ -235,7 +235,7 @@ This is a commandline PHP script which minifies Javascript and CSS files.
                 // TODO: build in recursive directory check???
 
                 // Add fullpaths of files to list
-                $filesToHandle[]   = $dir . $file;
+                $filesToHandle[]   = realpath($dir . $file);
             }
         }
     }
