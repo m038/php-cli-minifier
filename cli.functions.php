@@ -65,13 +65,17 @@
 
     /**
      * Loop through array with files and convert filenames to file paths
-     * @param  mixed    $fileList   List of files (array). A single file can
-     *                              also be specified as string, it will
-     *                              internally be converted to an array.
-     * @param  boolean  $verbose    More output
-     * @return mixed                Returns boolean on error and array on success
+     * @param  mixed    $fileList       List of files (array). A single file can
+     *                                  also be specified as string, it will
+     *                                  internally be converted to an array.
+     * @param  array    $directoryPaths Contains a list of paths to directories
+     *                                  in which will be scanned for files, when
+     *                                  the file on itself cannot be found
+     * @param  boolean  $verbose        More output
+     * @return mixed                    Returns boolean on error and array on
+     *                                  success
      */
-    function handleFilelists($fileList, $verbose=false) {
+    function handleFilelists($fileList, $directoryPaths=array(), $verbose=false) {
 
         // Check for type and data
         if ((!is_string($fileList) && !is_array($fileList)) || empty($fileList)) {
@@ -100,7 +104,7 @@
         foreach ($fileList AS $fileEntry) {
 
             // Try to find filepath
-            $filepath = findRealpath($fileEntry, $prevPath);
+            $filepath = findRealpath($fileEntry, array_merge($prevPath, $directoryPaths));
 
             // Ignore file when no filepath is found
             if (!$filepath) {

@@ -176,6 +176,7 @@ This is a commandline PHP script which minifies Javascript and CSS files.
     $countDirs          = count($inputDirs);
     $countFiles         = count($inputFiles);
     $filesToHandle      = array(); // Will contain absolute paths
+    $directoryPaths     = array(); // Directory paths, used for scanning
 
     // Check if any directories or files are given
     if ($countDirs == 0 && $countFiles == 0) {
@@ -231,29 +232,41 @@ This is a commandline PHP script which minifies Javascript and CSS files.
                 // TODO: build in recursive directory check???
 
                 // Add fullpaths of files to list
-                $filesToHandle[]   = realpath($dir . $file);
+                $filesToHandle[]    = realpath($dir . $file);
+                $directoryPaths[]   = realpath($dir);
             }
         }
     }
 
-    // TODO: add sort functionality
-    echo var_dump($filesToHandle)."\n";
+    // Remove duplicates
+    $directoryPaths = array_unique($directoryPaths);
 
 
     // Handle files
     if ($countFiles > 0) {
 
-        $filesToHandle = handleFilelists($inputFiles, $verbose);
+        $seperateFilesToHandle = handleFilelists($inputFiles, $directoryPaths, $verbose);
+
+        // Check if function is succesfull
+        if (is_array($seperateFilesToHandle)) {
+
+            // Merge arrays
+            // Note: put $seperateFilesToHandle first, so they will be on top of
+            // the array, this way one can specify a complete directory to scan
+            // and just one or two files which should be handled first, by
+            // specifying them seperately
+            $filesToHandle = array_merge($seperateFilesToHandle, $filesToHandle);
+        }
     }
 
-    echo var_dump($filesToHandle)."\n";
-    exit;
+    // Remove duplicates
+    $filesToHandle = array_unique($filesToHandle);
+
 
     if ($verbose) {
         echo "FILES TO CONVERT\ntotal: ".count($filesToHandle)."\n".print_r($filesToHandle, true)."\n";
     }
 
-    // TODO: file to full path converstion for $inputOutputFile, maybe via function?
     // Check if files should be merged into 1 file
     if (!empty($inputOutputFile)) {
 
