@@ -41,6 +41,8 @@ This is a commandline PHP script which minifies Javascript and CSS files.
                         to filter for css files.
   -j, --javascript      When not specifying files manually, use this argument
                         to filter for css files.
+  --output-timestamp    Place timestamp before .min. in output file(s)
+  --print-output        Print output filename(s) on succes, instead of 1.
 
 <?php
 
@@ -57,6 +59,8 @@ This is a commandline PHP script which minifies Javascript and CSS files.
     $includeMinified    = false; // When matching files in a dir, will include files with .min. in their name
     $minifyJavascript   = false;
     $minifyCSS          = false;
+    $addTimestamp       = false;
+    $printOutputFiles   = false;
 
     $excludeFiles       = array(); // Files to exclude
     $inputDirs          = array(); // Directories to scan
@@ -88,6 +92,12 @@ This is a commandline PHP script which minifies Javascript and CSS files.
                 case '-j':
                 case '--javascript':
                     $minifyJavascript   = true;
+                break;
+                case '--output-timestamp':
+                    $addTimestamp       = true;
+                break;
+                case '--print-output':
+                    $printOutputFiles   = true;
                 break;
                 default:
                     $prevOption         = $parameter;
@@ -170,7 +180,7 @@ This is a commandline PHP script which minifies Javascript and CSS files.
     }
 
     // Find fullpaths for exclude files
-    $excludeFilesFull   = handleFilelists($excludeFiles, $verbose);
+    $excludeFilesFull   = handleFilelists($excludeFiles, array(), $verbose);
 
 
     $countDirs          = count($inputDirs);
