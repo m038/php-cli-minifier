@@ -40,7 +40,7 @@ This is a commandline PHP script which minifies Javascript and CSS files.
   -c, --css             When not specifying files manually, use this argument
                         to filter for css files.
   -j, --javascript      When not specifying files manually, use this argument
-                        to filter for css files.
+                        to filter for javascript files.
   --output-timestamp    Place timestamp before .min. in output file(s)
   --print-output        Print output filename(s) on succes, instead of 1.
 
@@ -50,8 +50,12 @@ This is a commandline PHP script which minifies Javascript and CSS files.
 
     ini_set('memory_limit', '512M');    // Memory heavy action
     set_time_limit(0);                  // Large files can cause timeout
-    require 'jsminplus.php';            // JsMinPlus 1.4
-    require 'cli.functions.php';
+
+    define('ROOT_PATH', realpath(__FILE__).'/');
+
+    require ROOT_PATH . 'lib/jsminplus.php';            // JSMinPlus version 1.4
+    require ROOT_PATH . 'lib/less.inc.php';             // lessphp v0.3.5
+    require ROOT_PATH . 'cli.functions.php';
 
     // Default values for arguments
     $verbose            = false; // Verbose output
@@ -151,13 +155,14 @@ This is a commandline PHP script which minifies Javascript and CSS files.
     // At least one of the types should be specified
     if (!$minifyJavascript && !$minifyCSS) {
         if ($verbose) {
-            die("You must set a handling type, see -j and-c.\n");
+            die("Unclear what to do! You haven't supplied a .js or .css file or set a filetype manually, see -j and -c.\n");
         }
         echo 0;
         exit;
     }
 
     // Minified file pattern
+    // TODO: add filestamp check?
     $minifiedFilePattern    = '(\.|\-)min';
 
     // Containers file extentions, which will be used to filter file lists
@@ -239,7 +244,7 @@ This is a commandline PHP script which minifies Javascript and CSS files.
                     in_array($file, $excludeFiles)
                 ) continue;
 
-                // TODO: build in recursive directory check???
+                // TODO: build in recursive directory check?
 
                 // Add fullpaths of files to list
                 $filesToHandle[]    = realpath($dir . $file);
