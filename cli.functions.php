@@ -1,4 +1,4 @@
-<?php if (!defined('CLI')) exit;
+<?php if (!defined('CLI')) die('CLI only.');
 
 
 	/**
