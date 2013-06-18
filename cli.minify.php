@@ -142,6 +142,26 @@ This is a commandline PHP script which minifies Javascript and CSS files.
         echo "\nSTARTING VERBOSE OUTPUT\n\n";
     }
 
+    if (count($inputFiles) > 0)  {
+
+        if ($verbose) {
+            echo "Determining what filetype based on input files. (-f)\n\n";
+        }
+
+        foreach ($inputFiles AS $file) {
+            if (strpos($file, '.')===false) continue; // Skip files with no extension
+            $extension = substr($file, strrpos($file, '.')+1);
+            if ($extension == 'js') {
+                $minifyJavascript  = true;
+                break;
+            }
+            if ($extension == 'css' || $extension == 'less') {
+                $minifyCSS = true;
+                break;
+            }
+        }
+    }
+
     // For now it's not possible to minify both Javascript and CSS
     if ($minifyJavascript && $minifyCSS) {
         if ($verbose) {
