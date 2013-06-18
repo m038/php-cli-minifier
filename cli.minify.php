@@ -51,10 +51,10 @@ This is a commandline PHP script which minifies Javascript and CSS files.
     ini_set('memory_limit', '512M');    // Memory heavy action
     set_time_limit(0);                  // Large files can cause timeout
 
-    define('ROOT_PATH', realpath(__FILE__).'/');
+    define('ROOT_PATH', dirname(realpath(__FILE__)).'/');
 
     require ROOT_PATH . 'lib/jsminplus.php';            // JSMinPlus version 1.4
-    require ROOT_PATH . 'lib/less.inc.php';             // lessphp v0.3.5
+    require ROOT_PATH . 'lib/lessc.inc.php';             // lessphp v0.3.5
     require ROOT_PATH . 'cli.functions.php';
 
     // Default values for arguments
@@ -71,7 +71,7 @@ This is a commandline PHP script which minifies Javascript and CSS files.
     $inputFiles         = array(); // Manual input files
     $inputOutputFile    = ''; // Output file
 
-    $prevOption         = ''; // User to store the previous argument
+    $prevOption         = ''; // Use to store the previous argument
 
     // Handle arguments
     foreach ($argv AS $parameter) {
@@ -141,7 +141,6 @@ This is a commandline PHP script which minifies Javascript and CSS files.
     if ($verbose) {
         echo "\nSTARTING VERBOSE OUTPUT\n\n";
     }
-
 
     // For now it's not possible to minify both Javascript and CSS
     if ($minifyJavascript && $minifyCSS) {
